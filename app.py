@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.utils import resample
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -40,19 +40,23 @@ fields = [
     'number_of_closed_accounts', 'total_loan_months'
 ]
 
-# If 'default' column missing, simulate for testing only
-if 'default' not in df.columns:
-    st.warning("⚠️ 'default' column not found. Simulating labels for testing.")
-    df['default'] = np.random.choice([0, 1], size=len(df), p=[0.7, 0.3])
+fields.append('default')
+df = df[fields[:-1]].dropna()
 
 # Add features
-df = df[fields + ['default']].dropna()
 df['total_available_funds'] = df['income'] + df['bank_balance_at_application']
 df['loan_to_funds_ratio'] = np.log1p(df['loan_amount'] / (df['total_available_funds'] + 1))
 df['balance_to_sanction_ratio'] = np.log1p(df['bank_balance_at_application'] / (df['sanction_amount'] + 1))
 df['open_to_closed_ratio'] = np.log1p(df['number_of_open_accounts'] / (df['number_of_closed_accounts'] + 1))
 df['balance_minus_loan'] = df['bank_balance_at_application'] - df['loan_amount']
 df['debt_ratio'] = (df['loan_amount'] + df['processing_fee']) / (df['income'] + df['bank_balance_at_application'] + 1)
+
+# Realistic and relaxed default label logic
+df['default'] = (
+    (df['loan_amount'] > (df['income'] * 12 + df['bank_balance_at_application'])) |
+    (df['loan_to_funds_ratio'] > 1.5) |
+    ((df['number_of_open_accounts'] > 10) & (df['open_to_closed_ratio'] > 3))
+).astype(int)
 
 # Balance the dataset
 majority = df[df['default'] == 0]
@@ -85,13 +89,11 @@ model = lgb.LGBMClassifier(
 )
 model.fit(X_train, y_train)
 
-# Evaluate with cross-validation
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scores = cross_val_score(model, X, y, cv=cv, scoring='accuracy')
+# Evaluate
 preds = model.predict(X_test)
 
 st.subheader("✅ Model Evaluation")
-st.write(f"Cross-Validated Accuracy (5-fold): {scores.mean():.2%} ± {scores.std():.2%}")
+st.write(f"Accuracy: {accuracy_score(y_test, preds):.2%}")
 st.text(classification_report(y_test, preds))
 
 # Smaller confusion matrix
@@ -99,6 +101,14 @@ fig, ax = plt.subplots(figsize=(1.5, 1.5))
 sns.heatmap(confusion_matrix(y_test, preds), annot=True, fmt="d", cmap="Blues", cbar=False, ax=ax)
 ax.set_title("Confusion Matrix")
 st.pyplot(fig, use_container_width=False)
+
+# Feature importance
+importances = model.feature_importances_
+feat_names = X_train.columns
+feat_df = pd.DataFrame({'Feature': feat_names, 'Importance': importances})
+
+st.subheader("📊 Feature Importance")
+st.dataframe(feat_df.sort_values('Importance', ascending=False))
 
 # --- Input for prediction ---
 st.subheader("📥 Predict Credit Risk")
@@ -134,10 +144,11 @@ user_df = user_df[X_train.columns]
 
 if st.button("🔮 Predict Risk"):
     if not valid_input or user_df.isnull().values.any():
-        st.warning("⚠️ Please enter non-zero values (except for income and number of closed accounts).")
+        st.warning("⚠ Please enter non-zero values (except for income and number of closed accounts).")
     else:
         probability = model.predict_proba(user_df)[0][1] * 100
 
+        # Updated relaxed label thresholds
         if probability < 30 and user_input['balance_minus_loan'] > 0:
             label = "🟢 Good"
         elif probability < 60:
@@ -145,4 +156,5 @@ if st.button("🔮 Predict Risk"):
         else:
             label = "🔴 Poor"
 
-        st.success(f"Prediction: **{label}** ({probability:.2f}% chance of default)")
+        st.success(f"Prediction: *{label}* ({probability:.2f}% chance of default)")
+   
