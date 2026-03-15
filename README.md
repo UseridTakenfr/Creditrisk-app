@@ -1,10 +1,11 @@
-#Credit Risk Prediction System
-Project Overview
+# Credit Risk Prediction System
+
+## Project Overview
 
 This project predicts whether a loan applicant is likely to default on a loan based on financial and personal information.
 The goal is to help financial institutions assess credit risk before approving loans.
 
-Dataset
+## Dataset
 
 The project uses three datasets:
 
@@ -16,48 +17,50 @@ Bureau Data – bank balance, open accounts, closed accounts
 
 These datasets are merged using a customer ID.
 
-Feature Engineering
+## Feature Engineering
 
 Additional features were created to improve prediction:
 
-Total Available Funds
+- Total Available Funds
 
-Loan to Funds Ratio
+- Loan to Funds Ratio
 
-Debt Ratio
+- Debt Ratio
 
-Open to Closed Account Ratio
+- Open to Closed Account Ratio
 
-Balance Minus Loan
+- Balance Minus Loan
 
-Model Used
+## Model Used
 
 The model used is LightGBM Classifier, which is efficient and performs well on structured datasets.
 
-Model Evaluation
+## Model Evaluation
 
 The model was evaluated using:
 
-Accuracy Score
+- Accuracy Score
 
-Precision and Recall
+- Precision and Recall
 
-Confusion Matrix
+- Confusion Matrix
 
-Technologies Used
+## Technologies Used
 
-Python
+- Python
 
-Pandas
+- Pandas
 
-NumPy
+- NumPy
 
-Scikit-learn
+- Scikit-learn
 
-LightGBM
+- LightGBM
 
-Streamlit
+- Streamlit
 
-Matplotlib
+- Matplotlib
 
-Seaborn
+- Seaborn
+
+
